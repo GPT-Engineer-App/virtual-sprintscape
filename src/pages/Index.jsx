@@ -1,20 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cat, Heart, Info, Paw, Camera, ChevronLeft, ChevronRight } from "lucide-react";
+import { Cat, Heart, Info, Paw, Camera, ChevronLeft, ChevronRight, Star, Music, Volume2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
+import { Slider } from "@/components/ui/slider";
 import confetti from 'canvas-confetti';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const Index = () => {
   const [likes, setLikes] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.5);
   const { toast } = useToast();
   const headerRef = useRef(null);
+  const audioRef = useRef(null);
 
   const { scrollYProgress } = useScroll({
     target: headerRef,
@@ -39,6 +44,33 @@ const Index = () => {
     "A cat's sense of smell is 14 times stronger than a human's.",
     "Cats spend 70% of their lives sleeping.",
   ];
+
+  const catPopulationData = [
+    { year: 2015, population: 530 },
+    { year: 2016, population: 552 },
+    { year: 2017, population: 580 },
+    { year: 2018, population: 600 },
+    { year: 2019, population: 625 },
+    { year: 2020, population: 650 },
+  ];
+
+  const togglePlay = useCallback(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  }, [isPlaying]);
+
+  const handleVolumeChange = useCallback((newVolume) => {
+    setVolume(newVolume[0]);
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume[0];
+    }
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -103,8 +135,50 @@ const Index = () => {
           >
             Discover the Wonderful World of Cats
           </motion.p>
+          <motion.div
+            className="mt-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1, duration: 0.5 }}
+          >
+            <Button
+              variant="outline"
+              size="lg"
+              className="bg-white text-purple-600 hover:bg-purple-100 transition-colors"
+              onClick={() => {
+                toast({
+                  title: "Welcome!",
+                  description: "Enjoy your journey through the world of cats!",
+                  duration: 3000,
+                });
+              }}
+            >
+              <Star className="mr-2 h-5 w-5" /> Start Exploring
+            </Button>
+          </motion.div>
         </div>
       </motion.header>
+
+      <div className="fixed bottom-4 right-4 z-50 flex items-center space-x-2 bg-white p-2 rounded-full shadow-lg">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={togglePlay}
+          className="text-purple-600 hover:text-purple-800"
+        >
+          {isPlaying ? <Volume2 className="h-6 w-6" /> : <Music className="h-6 w-6" />}
+        </Button>
+        <Slider
+          className="w-24"
+          value={[volume]}
+          max={1}
+          step={0.01}
+          onValueChange={handleVolumeChange}
+        />
+      </div>
+      <audio ref={audioRef} loop>
+        <source src="https://example.com/cat-purring.mp3" type="audio/mpeg" />
+      </audio>
 
       <main className="container mx-auto py-24 px-4">
         <section className="mb-24">
@@ -185,9 +259,36 @@ const Index = () => {
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
                   <Camera className="text-white h-12 w-12" />
                 </div>
+                <motion.div
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileHover={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <p className="text-white text-lg font-semibold">Cat {index + 1}</p>
+                  <p className="text-white text-sm">Click to view full size</p>
+                </motion.div>
               </motion.div>
             ))}
           </div>
+        </section>
+
+        <section className="mb-24">
+          <h2 className="text-4xl font-bold mb-8 text-center">Cat Population Trend</h2>
+          <Card className="w-full max-w-4xl mx-auto">
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={catPopulationData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="population" stroke="#8884d8" activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </section>
 
         <Tabs defaultValue="characteristics" className="mb-24">
@@ -284,33 +385,40 @@ const Index = () => {
         </div>
       </main>
 
-      {lightboxOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute top-4 right-4 text-white"
-            onClick={closeLightbox}
+      <AnimatePresence>
+        {lightboxOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <motion.div
-              initial={{ rotate: 0 }}
-              animate={{ rotate: 90 }}
-              transition={{ duration: 0.2 }}
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-4 right-4 text-white"
+              onClick={closeLightbox}
             >
-              ✕
-            </motion.div>
-          </Button>
-          <motion.img
-            src={lightboxImage}
-            alt="Lightbox image"
-            className="max-w-full max-h-full"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
-          />
-        </div>
-      )}
+              <motion.div
+                initial={{ rotate: 0 }}
+                animate={{ rotate: 90 }}
+                transition={{ duration: 0.2 }}
+              >
+                ✕
+              </motion.div>
+            </Button>
+            <motion.img
+              src={lightboxImage}
+              alt="Lightbox image"
+              className="max-w-full max-h-full"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3 }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
